@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Live Sensor Data</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+      background-color: #f4f4f4;
+    }
+    h2 {
+      margin-top: 2rem;
+      color: #2c3e50;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      background: white;
+      margin-bottom: 2rem;
+    }
+    th, td {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+    }
+    th {
+      background-color: #2c3e50;
+      color: white;
+    }
+    td {
+      text-align: center;
+    }
+    .timestamp {
+      text-align: left;
+      font-weight: bold;
+      background-color: #eef;
+    }
+  </style>
+</head>
+<body>
+  <h2>🔄 ข้อมูลล่าสุดจากเซนเซอร์ (CSV)</h2>
+  <table id="sensor-table">
+    <thead>
+      <tr id="table-head"></tr>
+    </thead>
+    <tbody>
+      <tr id="table-body"></tr>
+    </tbody>
+  </table>
+
+  <h2>📊 ค่าสถิติ (Min / Max / Avg) ของแถวล่าสุด</h2>
+  <table id="summary-table">
+    <thead>
+      <tr>
+        <th>Field</th>
+        <th>Min</th>
+        <th>Max</th>
+        <th>Avg</th>
+      </tr>
+    </thead>
+    <tbody id="summary-body"></tbody>
+  </table>
+
+  <script>
+    // ฟังก์ชันโหลดข้อมูลล่าสุด
+    async function fetchLatest() {
+      try {
+        const res = await fetch('http://localhost:3000/latest');
+        const data = await res.json();
+
+        const headRow = document.getElementById('table-head');
+        const bodyRow = document.getElementById('table-body');
+
+        // สร้างหัวตารางถ้ายังไม่มี
+        if (headRow.childElementCount === 0) {
+          Object.keys(data).forEach(key => {
+            const th = document.createElement('th');
+            th.textContent = key;
+            headRow.appendChild(th);
+          });
+        }
+
+        // แสดงข้อมูลล่าสุด
+        bodyRow.innerHTML = '';
+        Object.values(data).forEach(val => {
+          const td = document.createElement('td');
+          td.textContent = val;
+          bodyRow.appendChild(td);
+        });
+
+      } catch (err) {
+        console.error('❌ ดึงข้อมูลล่าสุดผิดพลาด:', err);
+      }
+    }
+
+    // ฟังก์ชันโหลดค่าทางสถิติ
+    async function fetchSummary() {
+      try {
+        const res = await fetch('http://localhost:3000/latest-summary');
+        const data = await res.json();
+
+        const tbody = document.getElementById('summary-body');
+        tbody.innerHTML = ''; // ล้างของเก่า
+
+        // แสดงเวลาแถวล่าสุด
+        const timeRow = document.createElement('tr');
+        const timeCell = document.createElement('td');
+        timeCell.textContent = `⏰ ข้อมูล ณ เวลา: ${data.time}`;
+        timeCell.colSpan = 4;
+        timeCell.classList.add('timestamp');
+        timeRow.appendChild(timeCell);
+        tbody.appendChild(timeRow);
+
+        // แสดงสถิติแต่ละ field
+        for (const field in data.stats) {
+          const stat = data.stats[field];
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${field}</td>
+            <td>${stat.min}</td>
+            <td>${stat.max}</td>
+            <td>${stat.avg}</td>
+          `;
+          tbody.appendChild(tr);
+        }
+
+      } catch (err) {
+        console.error('❌ ดึงสถิติล่าสุดผิดพลาด:', err);
+      }
+    }
+
+    // เรียกทุก 1 วินาที
+    setInterval(() => {
+      fetchLatest();
+      fetchSummary();
+    }, 1000);
+
+    // เรียกครั้งแรกทันที
+    fetchLatest();
+    fetchSummary();
+  </script>
+</body>
+</html>
