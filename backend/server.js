@@ -1,5 +1,6 @@
 const express = require('express');
 const fs = require('fs');
+const path = require('path');
 const csv = require('csv-parser');
 const cors = require('cors');
 
@@ -8,214 +9,295 @@ const PORT = 3000;
 
 app.use(cors());
 
-// 🔧 ใส่ path ไฟล์ CSV ให้ถูกต้อง
-const csvFilePath = 'C:/Users/Atipat/Desktop/New_Bang/PM_11-07-2025.csv';
+// 📁 โฟลเดอร์ที่เก็บไฟล์ CSV
+const csvDirectory = 'C:/Users/Atipat/Desktop/New_Bang/';
 
-// 📥 ฟังก์ชันอ่านแถวล่าสุด
-function getLatestRow(callback) {
-  const rows = [];
-  fs.createReadStream(csvFilePath)
-    .pipe(csv())
-    .on('data', (data) => {
-      rows.push(data);
-    })
-    .on('end', () => {
-      if (rows.length > 0) {
-        callback(rows[rows.length - 1]);
-      } else {
-        callback(null);
-      }
-    })
-    .on('error', (err) => {
-      console.error('CSV read error:', err.message);
-      callback(null);
-    });
+// 🗓️ ฟังก์ชันสร้างชื่อไฟล์ตามวันที่ปัจจุบัน
+function getCurrentCsvPath() {
+  const now = new Date();
+  const day = String(now.getDate()).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year = now.getFullYear();
+  
+  const filename = `PM_${day}-${month}-${year}.csv`;
+  return path.join(csvDirectory, filename);
 }
 
-// 🕐 ฟังก์ชันแปลงวันที่/เวลา (ปรับปรุงแล้ว)
-function parseDateTime(dateStr, timeStr) {
+// 🔍 ฟังก์ชันหาไฟล์ CSV ที่มีอยู่
+function findAvailableCsvFile() {
+  const todayFile = getCurrentCsvPath();
+  
+  // ลองไฟล์วันนี้ก่อน
+  if (fs.existsSync(todayFile)) {
+    console.log(`📁 Using today's file: ${todayFile}`);
+    return todayFile;
+  }
+  
+  // ถ้าไม่มี ลองหาไฟล์ล่าสุด
   try {
-    // ลองหลายรูปแบบ
-    const formats = [
-      // รูปแบบ: DD/MM/YYYY HH:mm:ss
-      () => {
-        const [day, month, year] = dateStr.split('/');
-        return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${timeStr}`);
-      },
-      // รูปแบบ: MM/DD/YYYY HH:mm:ss
-      () => {
-        const [month, day, year] = dateStr.split('/');
-        return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${timeStr}`);
-      },
-      // รูปแบบ: YYYY-MM-DD HH:mm:ss
-      () => new Date(`${dateStr} ${timeStr}`),
-      // รูปแบบ: DD-MM-YYYY HH:mm:ss
-      () => {
-        const [day, month, year] = dateStr.split('-');
-        return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${timeStr}`);
-      }
-    ];
+    const files = fs.readdirSync(csvDirectory)
+      .filter(file => file.startsWith('PM_') && file.endsWith('.csv'))
+      .sort()
+      .reverse();
+    
+    if (files.length > 0) {
+      const latestFile = path.join(csvDirectory, files[0]);
+      console.log(`📁 Using latest file: ${latestFile}`);
+      return latestFile;
+    }
+  } catch (error) {
+    console.error('❌ Error reading directory:', error.message);
+  }
+  
+  console.error('❌ No CSV files found');
+  return null;
+}
 
-    for (const format of formats) {
-      const date = format();
-      if (!isNaN(date.getTime())) {
-        return date;
+// 🕐 ฟังก์ชันแปลงวันที่/เวลา
+function parseDateTime(dateStr, timeStr) {
+  if (!dateStr || !timeStr) return null;
+  
+  try {
+    // ลองรูปแบบ DD/MM/YYYY HH:mm:ss
+    if (dateStr.includes('/')) {
+      const [day, month, year] = dateStr.split('/');
+      const dateTime = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${timeStr}`);
+      if (!isNaN(dateTime.getTime())) {
+        return dateTime;
       }
     }
-
-    // หากไม่สำเร็จ ลองแปลงแบบง่าย
-    return new Date(`${dateStr} ${timeStr}`);
+    
+    // ลองรูปแบบ DD-MM-YYYY HH:mm:ss
+    if (dateStr.includes('-')) {
+      const [day, month, year] = dateStr.split('-');
+      const dateTime = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${timeStr}`);
+      if (!isNaN(dateTime.getTime())) {
+        return dateTime;
+      }
+    }
+    
+    // ลองรูปแบบ YYYY-MM-DD HH:mm:ss
+    const dateTime = new Date(`${dateStr} ${timeStr}`);
+    if (!isNaN(dateTime.getTime())) {
+      return dateTime;
+    }
+    
+    return null;
   } catch (error) {
     console.error('Date parsing error:', error.message);
     return null;
   }
 }
 
-// ✅ Endpoint 1: /latest — แสดงแถวล่าสุด
+// 📊 ฟังก์ชันคำนวณสถิติ
+function calculateStats(values) {
+  if (!values || values.length === 0) return null;
+  
+  const numbers = values.map(v => parseFloat(v)).filter(v => !isNaN(v));
+  if (numbers.length === 0) return null;
+  
+  return {
+    min: Math.min(...numbers).toFixed(2),
+    max: Math.max(...numbers).toFixed(2),
+    avg: (numbers.reduce((a, b) => a + b, 0) / numbers.length).toFixed(2)
+  };
+}
+
+// 📥 ฟังก์ชันอ่านข้อมูลจาก CSV
+function readCsvData(callback) {
+  const csvPath = findAvailableCsvFile();
+  
+  if (!csvPath) {
+    return callback(null, 'No CSV file found');
+  }
+  
+  const rows = [];
+  
+  fs.createReadStream(csvPath)
+    .pipe(csv())
+    .on('data', (data) => {
+      rows.push(data);
+    })
+    .on('end', () => {
+      callback(rows, null, csvPath);
+    })
+    .on('error', (err) => {
+      console.error('CSV read error:', err.message);
+      callback(null, 'CSV read error: ' + err.message);
+    });
+}
+
+// ✅ Endpoint 1: /latest
 app.get('/latest', (req, res) => {
-  getLatestRow((latest) => {
-    if (latest) {
-      res.json(latest);
-    } else {
-      res.status(500).json({ error: 'No data found' });
+  readCsvData((rows, error, csvPath) => {
+    if (error) {
+      return res.status(500).json({ error: error });
     }
+    
+    if (!rows || rows.length === 0) {
+      return res.status(500).json({ error: 'No data found' });
+    }
+    
+    const latest = rows[rows.length - 1];
+    res.json({
+      ...latest,
+      csvFile: path.basename(csvPath)
+    });
   });
 });
 
-// ✅ Endpoint 2: /debug — ตรวจสอบข้อมูล (เพิ่มใหม่)
+// ✅ Endpoint 2: /debug
 app.get('/debug', (req, res) => {
-  const rows = [];
-  fs.createReadStream(csvFilePath)
-    .pipe(csv())
-    .on('data', (data) => {
-      rows.push(data);
-    })
-    .on('end', () => {
-      if (rows.length === 0) {
-        return res.status(500).json({ error: 'No data found' });
-      }
-
-      // ดูข้อมูล 5 แถวล่าสุด
-      const latest5 = rows.slice(-5).map(row => {
-        const timestamp = parseDateTime(row.Date, row.Time);
-        return {
-          originalDate: row.Date,
-          originalTime: row.Time,
-          parsedTimestamp: timestamp ? timestamp.toISOString() : 'INVALID',
-          isValid: timestamp && !isNaN(timestamp.getTime())
-        };
-      });
-
-      const now = new Date();
-      const fiveMinutesAgo = new Date(now.getTime() - 5 * 60000);
-
-      res.json({
-        totalRows: rows.length,
-        currentTime: now.toISOString(),
-        fiveMinutesAgo: fiveMinutesAgo.toISOString(),
-        latest5Rows: latest5,
-        sampleRow: rows[0] // ดูโครงสร้างข้อมูล
-      });
-    })
-    .on('error', (err) => {
-      console.error('CSV read error:', err.message);
-      res.status(500).json({ error: 'CSV read error' });
+  readCsvData((rows, error, csvPath) => {
+    if (error) {
+      return res.status(500).json({ error: error });
+    }
+    
+    if (!rows || rows.length === 0) {
+      return res.status(500).json({ error: 'No data found' });
+    }
+    
+    const latest5 = rows.slice(-5).map(row => {
+      const timestamp = parseDateTime(row.Date, row.Time);
+      return {
+        originalDate: row.Date,
+        originalTime: row.Time,
+        parsedTimestamp: timestamp ? timestamp.toISOString() : 'INVALID',
+        isValid: timestamp && !isNaN(timestamp.getTime())
+      };
     });
+    
+    res.json({
+      totalRows: rows.length,
+      currentTime: new Date().toISOString(),
+      csvFile: path.basename(csvPath),
+      csvPath: csvPath,
+      latest5Rows: latest5,
+      sampleRow: rows[0]
+    });
+  });
 });
 
-// ✅ Endpoint 3: /latest-summary — คำนวณค่าสถิติ (ปรับปรุงแล้ว)
-app.get('/latest-summary', (req, res) => {
-  const rows = [];
-  fs.createReadStream(csvFilePath)
-    .pipe(csv())
-    .on('data', (data) => {
-      rows.push(data);
-    })
-    .on('end', () => {
-      if (rows.length === 0) {
-        return res.status(500).json({ error: 'No data found' });
-      }
-
-      // เวลาปัจจุบันของระบบ (Thailand timezone)
-      const now = new Date();
-      const fiveMinutesAgo = new Date(now.getTime() - 5 * 60000);
-
-      console.log('🕐 Current time:', now.toISOString());
-      console.log('🕐 Five minutes ago:', fiveMinutesAgo.toISOString());
-
-      // รวมข้อมูล timestamp ใหม่ในแต่ละแถว
-      const enrichedRows = rows.map(row => {
-        const timestamp = parseDateTime(row.Date, row.Time);
-        return { ...row, timestamp };
-      }).filter(row => row.timestamp && !isNaN(row.timestamp.getTime()));
-
-      console.log('✅ Total valid rows:', enrichedRows.length);
-
-      if (enrichedRows.length === 0) {
-        return res.status(500).json({ error: 'No valid timestamp data found' });
-      }
-
-      // ดึงเฉพาะข้อมูลในช่วง 5 นาที
-      const recentRows = enrichedRows.filter(row => {
-        const isInRange = row.timestamp >= fiveMinutesAgo && row.timestamp <= now;
-        if (isInRange) {
-          console.log('📊 Found recent row:', row.Date, row.Time, row.timestamp.toISOString());
-        }
-        return isInRange;
-      });
-
-      console.log('📊 Recent rows count:', recentRows.length);
-
-      if (recentRows.length === 0) {
-        // แสดงข้อมูลล่าสุดเพื่อ debug
-        const latestRow = enrichedRows[enrichedRows.length - 1];
-        console.log('🔍 Latest row timestamp:', latestRow.timestamp.toISOString());
-        console.log('🔍 Time difference (minutes):', (now - latestRow.timestamp) / 60000);
-        
-        return res.status(404).json({ 
-          error: 'No data in last 5 minutes',
-          debug: {
-            latestDataTime: latestRow.timestamp.toISOString(),
-            currentTime: now.toISOString(),
-            minutesAgo: Math.round((now - latestRow.timestamp) / 60000)
-          }
-        });
-      }
-
-      // คำนวณค่าเฉลี่ย min max
-      const numericKeys = Object.keys(rows[0]).filter(k => k !== 'Date' && k !== 'Time');
-      const stats = {};
-
-      numericKeys.forEach(key => {
-        const values = recentRows.map(row => parseFloat(row[key])).filter(v => !isNaN(v));
-        if (values.length > 0) {
-          stats[key] = {
-            min: Math.min(...values).toFixed(2),
-            max: Math.max(...values).toFixed(2),
-            avg: (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2)
-          };
-        }
-      });
-
-      res.json({
-        timeRange: {
-          start: fiveMinutesAgo.toISOString(),
-          end: now.toISOString()
-        },
-        dataPoints: recentRows.length,
-        stats
-      });
-    })
-    .on('error', (err) => {
-      console.error('CSV read error:', err.message);
-      res.status(500).json({ error: 'CSV read error' });
+// ✅ Endpoint 3: /stats/:hours
+app.get('/stats/:hours', (req, res) => {
+  const hours = parseInt(req.params.hours);
+  
+  if (isNaN(hours) || hours <= 0) {
+    return res.status(400).json({ error: 'Invalid hours parameter' });
+  }
+  
+  readCsvData((rows, error, csvPath) => {
+    if (error) {
+      return res.status(500).json({ error: error });
+    }
+    
+    if (!rows || rows.length === 0) {
+      return res.status(500).json({ error: 'No data found' });
+    }
+    
+    const now = new Date();
+    const timeAgo = new Date(now.getTime() - hours * 60 * 60 * 1000);
+    
+    // กรองข้อมูลที่มี timestamp ถูกต้อง
+    const validRows = rows.map(row => {
+      const timestamp = parseDateTime(row.Date, row.Time);
+      return { ...row, timestamp };
+    }).filter(row => row.timestamp && !isNaN(row.timestamp.getTime()));
+    
+    if (validRows.length === 0) {
+      return res.status(500).json({ error: 'No valid timestamp data found' });
+    }
+    
+    // กรองข้อมูลในช่วงเวลาที่ต้องการ
+    const recentRows = validRows.filter(row => {
+      return row.timestamp >= timeAgo && row.timestamp <= now;
     });
+    
+    if (recentRows.length === 0) {
+      const latestRow = validRows[validRows.length - 1];
+      const hoursAgo = Math.round((now - latestRow.timestamp) / (1000 * 60 * 60));
+      
+      return res.status(404).json({
+        error: `No data in last ${hours} hours`,
+        debug: {
+          latestDataTime: latestRow.timestamp.toISOString(),
+          currentTime: now.toISOString(),
+          hoursAgo: hoursAgo,
+          csvFile: path.basename(csvPath)
+        }
+      });
+    }
+    
+    // คำนวณสถิติ
+    const numericColumns = Object.keys(rows[0]).filter(key => 
+      key !== 'Date' && key !== 'Time' && key !== 'timestamp'
+    );
+    
+    const stats = {};
+    numericColumns.forEach(column => {
+      const values = recentRows.map(row => row[column]);
+      const columnStats = calculateStats(values);
+      if (columnStats) {
+        stats[column] = columnStats;
+      }
+    });
+    
+    res.json({
+      timeRange: {
+        start: timeAgo.toISOString(),
+        end: now.toISOString(),
+        hours: hours
+      },
+      dataPoints: recentRows.length,
+      stats: stats,
+      csvFile: path.basename(csvPath)
+    });
+  });
+});
+
+// ✅ Endpoint 4: /files
+app.get('/files', (req, res) => {
+  try {
+    if (!fs.existsSync(csvDirectory)) {
+      return res.status(500).json({ error: 'CSV directory not found' });
+    }
+    
+    const files = fs.readdirSync(csvDirectory)
+      .filter(file => file.startsWith('PM_') && file.endsWith('.csv'))
+      .map(file => {
+        const filePath = path.join(csvDirectory, file);
+        const stats = fs.statSync(filePath);
+        return {
+          filename: file,
+          size: stats.size,
+          modified: stats.mtime.toISOString()
+        };
+      })
+      .sort((a, b) => new Date(b.modified) - new Date(a.modified));
+    
+    res.json({
+      currentFile: getCurrentCsvPath(),
+      availableFiles: files,
+      directory: csvDirectory
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Error reading files', 
+      details: error.message 
+    });
+  }
 });
 
 // 🚀 Start server
 app.listen(PORT, () => {
   console.log(`📡 Server running at http://localhost:${PORT}`);
-  console.log(`🔍 Debug endpoint: http://localhost:${PORT}/debug`);
-  console.log(`📊 Latest data: http://localhost:${PORT}/latest`);
-  console.log(`📈 Summary: http://localhost:${PORT}/latest-summary`);
+  console.log(`🔍 Available endpoints:`);
+  console.log(`   - GET /latest        - Latest data row`);
+  console.log(`   - GET /debug         - Debug information`);
+  console.log(`   - GET /stats/3       - Stats for last 3 hours`);
+  console.log(`   - GET /stats/12      - Stats for last 12 hours`);
+  console.log(`   - GET /stats/24      - Stats for last 24 hours`);
+  console.log(`   - GET /files         - List CSV files`);
+  console.log(`📁 CSV Directory: ${csvDirectory}`);
+  console.log(`📁 Today's file: ${getCurrentCsvPath()}`);
 });
