@@ -1,571 +1,267 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PM Data Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Sarabun', sans-serif; }
-        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .card-shadow { box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); }
-        .loading { 
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PM Analytics Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          animation: {
+            'shimmer': 'shimmer 2s linear infinite',
+            'pulse-dot': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+          },
+          keyframes: {
+            shimmer: {
+              '0%': { backgroundPosition: '-200px 0' },
+              '100%': { backgroundPosition: 'calc(200px + 100%) 0' }
+            }
+          }
         }
-        .fade-in {
-            animation: fadeIn 0.5s ease-in-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .status-indicator {
-            position: relative;
-            display: inline-block;
-        }
-        .status-indicator::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 8px;
-            height: 8px;
-            background: #10b981;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-        .offline::after {
-            background: #ef4444;
-        }
-        .data-updated {
-            animation: highlight 1s ease-in-out;
-        }
-        @keyframes highlight {
-            0% { background-color: #dbeafe; }
-            100% { background-color: transparent; }
-        }
-        .auto-refresh-indicator {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background: #10b981;
-            border-radius: 50%;
-            margin-left: 8px;
-            animation: pulse 1s infinite;
-        }
-    </style>
+      }
+    }
+  </script>
 </head>
+
 <body class="bg-gray-50 min-h-screen">
-    <!-- Header -->
-    <header class="gradient-bg text-white shadow-lg">
-        <div class="container mx-auto px-6 py-4">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                    </div>
-                    <div>
-                        <h1 class="text-2xl font-bold">PM Data Dashboard</h1>
-                        <p class="text-white/80 text-sm">
-                            Real-time Environmental Monitoring 
-                            <span class="auto-refresh-indicator"></span>
-                            Auto-refresh every 1 second
-                        </p>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <div class="text-right">
-                        <div class="status-indicator" id="connectionStatus">
-                            <span class="text-sm font-medium">Connected</span>
-                        </div>
-                        <div class="text-xs text-white/70" id="lastRefresh">
-                            Last update: --:--:--
-                        </div>
-                    </div>
-                    <button onclick="refreshData()" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors">
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
+  <!-- Header -->
+  <header class="bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between py-6">
+        <div class="flex items-center space-x-4">
+          <div class="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center text-2xl">
+            📊
+          </div>
+          <div>
+            <h1 class="text-3xl font-bold">PM Analytics Dashboard</h1>
+            <p class="text-purple-100 flex items-center space-x-2">
+              <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse-dot"></span>
+              <span>Real-time monitoring - Updates every second</span>
+            </p>
+          </div>
         </div>
-    </header>
-
-    <!-- Main Content -->
-    <main class="container mx-auto px-6 py-8">
-        <!-- Quick Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white rounded-xl card-shadow p-6 fade-in">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-600 text-sm font-medium">Latest Reading</p>
-                        <p class="text-2xl font-bold text-gray-800" id="latestTime">Loading...</p>
-                    </div>
-                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
-                        </svg>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-xl card-shadow p-6 fade-in">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-600 text-sm font-medium">Total Records</p>
-                        <p class="text-2xl font-bold text-gray-800" id="totalRecords">Loading...</p>
-                    </div>
-                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                        <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"></path>
-                        </svg>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-xl card-shadow p-6 fade-in">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-600 text-sm font-medium">Current File</p>
-                        <p class="text-sm font-bold text-gray-800" id="currentFile">Loading...</p>
-                    </div>
-                    <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                        <svg class="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zM3.293 7.707A1 1 0 014 7h12a1 1 0 01.707.293l2 2a1 1 0 010 1.414l-2 2A1 1 0 0116 13H4a1 1 0 01-.707-.293l-2-2a1 1 0 010-1.414l2-2z" clip-rule="evenodd"></path>
-                        </svg>
-                    </div>
-                </div>
-            </div>
+        <div class="text-right">
+          <div class="text-sm text-purple-200">Last Updated</div>
+          <div class="text-xl font-mono font-semibold" id="lastRefresh">--:--:--</div>
         </div>
+      </div>
+    </div>
+  </header>
 
-        <!-- Control Panel -->
-        <div class="bg-white rounded-xl card-shadow p-6 mb-8 fade-in">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">Control Panel</h2>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <button onclick="getLatestData()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
-                    Latest Data
-                </button>
-                <button onclick="getDebugInfo()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">
-                    Debug Info
-                </button>
-                <button onclick="getStats(3)" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors">
-                    3 Hours Stats
-                </button>
-                <button onclick="getFileList()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors">
-                    File List
-                </button>
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Current Data Section -->
+    <section class="mb-8">
+      <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        <div class="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-xl">
+                ⚡
+              </div>
+              <div>
+                <h2 class="text-xl font-semibold text-white">Current Readings</h2>
+                <p class="text-indigo-100 text-sm">Live sensor data - Updates every second</p>
+              </div>
             </div>
-            <div class="mt-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Custom Stats Period (Hours)</label>
-                <div class="flex space-x-2">
-                    <input type="number" id="customHours" min="1" max="168" value="24" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <button onclick="getCustomStats()" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors">
-                        Get Stats
-                    </button>
-                </div>
+            <div class="flex items-center space-x-2 text-green-100">
+              <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse-dot"></div>
+              <span class="text-sm">Online</span>
             </div>
+          </div>
+        </div>
+        <div class="p-6">
+          <div id="latestData" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Loading shimmer -->
+            <div class="bg-gray-100 rounded-lg p-4 animate-pulse">
+              <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+              <div class="h-6 bg-gray-200 rounded w-1/2"></div>
+            </div>
+            <div class="bg-gray-100 rounded-lg p-4 animate-pulse">
+              <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+              <div class="h-6 bg-gray-200 rounded w-1/2"></div>
+            </div>
+            <div class="bg-gray-100 rounded-lg p-4 animate-pulse">
+              <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+              <div class="h-6 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Historical Data Section -->
+    <section>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- 3 Hours -->
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+          <div class="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-xl">
+                🕐
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">3 Hours Range</h3>
+                <p class="text-green-100 text-sm">Recent Historical Data</p>
+              </div>
+            </div>
+          </div>
+          <div class="p-6">
+            <div id="stats3" class="space-y-4">
+              <!-- Loading shimmer -->
+              <div class="animate-pulse">
+                <div class="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- Data Display -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Latest Data -->
-            <div class="bg-white rounded-xl card-shadow p-6 fade-in">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Latest Data</h3>
-                <div id="latestData" class="text-gray-600">
-                    <div class="loading bg-gray-200 rounded h-4 mb-2"></div>
-                    <div class="loading bg-gray-200 rounded h-4 mb-2"></div>
-                    <div class="loading bg-gray-200 rounded h-4"></div>
-                </div>
+        <!-- 12 Hours -->
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+          <div class="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 py-4">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-xl">
+                🕕
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">12 Hours Range</h3>
+                <p class="text-blue-100 text-sm">Extended Historical View</p>
+              </div>
             </div>
-
-            <!-- Stats Display -->
-            <div class="bg-white rounded-xl card-shadow p-6 fade-in">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Statistics</h3>
-                <div id="statsData" class="text-gray-600">
-                    <div class="loading bg-gray-200 rounded h-4 mb-2"></div>
-                    <div class="loading bg-gray-200 rounded h-4 mb-2"></div>
-                    <div class="loading bg-gray-200 rounded h-4"></div>
-                </div>
+          </div>
+          <div class="p-6">
+            <div id="stats12" class="space-y-4">
+              <!-- Loading shimmer -->
+              <div class="animate-pulse">
+                <div class="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+              </div>
             </div>
-
-            <!-- Debug Info -->
-            <div class="bg-white rounded-xl card-shadow p-6 fade-in">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Debug Information</h3>
-                <div id="debugInfo" class="text-gray-600 text-sm">
-                    <div class="loading bg-gray-200 rounded h-4 mb-2"></div>
-                    <div class="loading bg-gray-200 rounded h-4 mb-2"></div>
-                    <div class="loading bg-gray-200 rounded h-4"></div>
-                </div>
-            </div>
-
-            <!-- File List -->
-            <div class="bg-white rounded-xl card-shadow p-6 fade-in">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Available Files</h3>
-                <div id="fileList" class="text-gray-600 text-sm">
-                    <div class="loading bg-gray-200 rounded h-4 mb-2"></div>
-                    <div class="loading bg-gray-200 rounded h-4 mb-2"></div>
-                    <div class="loading bg-gray-200 rounded h-4"></div>
-                </div>
-            </div>
+          </div>
         </div>
 
-        <!-- Chart Section -->
-        <div class="mt-8 bg-white rounded-xl card-shadow p-6 fade-in">
-            <h3 class="text-lg font-bold text-gray-800 mb-4">Data Visualization</h3>
-            <div class="h-96">
-                <canvas id="dataChart"></canvas>
+        <!-- 24 Hours -->
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+          <div class="bg-gradient-to-r from-purple-500 to-violet-600 px-6 py-4">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-xl">
+                🕛
+              </div>
+              <div>
+                <h3 class="text-lg font-semibold text-white">24 Hours Range</h3>
+                <p class="text-purple-100 text-sm">Full Daily Overview</p>
+              </div>
             </div>
+          </div>
+          <div class="p-6">
+            <div id="stats24" class="space-y-4">
+              <!-- Loading shimmer -->
+              <div class="animate-pulse">
+                <div class="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+              </div>
+            </div>
+          </div>
         </div>
-    </main>
+      </div>
+    </section>
+  </main>
 
-    <script>
-        const API_BASE = 'http://localhost:3000';
-        let chart = null;
+  <script>
+    const BASE_URL = 'http://localhost:3000';
 
-        // Initialize page
-        document.addEventListener('DOMContentLoaded', function() {
-            initializePage();
-            // Update every 1 second for real-time monitoring
-            setInterval(updateDashboard, 1000);
+    async function fetchStats(hours, targetId) {
+      try {
+        const res = await fetch(`${BASE_URL}/stats/${hours}`);
+        const data = await res.json();
+        const el = document.getElementById(targetId);
+        
+        if (!data.stats) {
+          el.innerHTML = '<div class="text-center py-8 text-gray-500">No data available</div>';
+          return;
+        }
+
+        let html = '';
+        Object.entries(data.stats).forEach(([key, val]) => {
+          html += `
+            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <div class="font-semibold text-gray-800 mb-2">${key}</div>
+              <div class="grid grid-cols-3 gap-2 text-sm">
+                <div class="text-center">
+                  <div class="text-xs text-gray-500 mb-1">Min</div>
+                  <div class="font-semibold text-blue-600">${parseFloat(val.min).toFixed(2)}</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-xs text-gray-500 mb-1">Avg</div>
+                  <div class="font-semibold text-green-600">${parseFloat(val.avg).toFixed(2)}</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-xs text-gray-500 mb-1">Max</div>
+                  <div class="font-semibold text-red-600">${parseFloat(val.max).toFixed(2)}</div>
+                </div>
+              </div>
+            </div>
+          `;
         });
+        
+        el.innerHTML = html;
+      } catch (err) {
+        document.getElementById(targetId).innerHTML = '<div class="text-center py-8 text-red-500">Connection error</div>';
+      }
+    }
 
-        function initializePage() {
-            getLatestData();
-            getDebugInfo();
-            getStats(24);
-            getFileList();
-        }
-
-        function updateDashboard() {
-            // Update all data automatically
-            getLatestData();
-            getDebugInfo();
-            getStats(24); // Always update 24hr stats
-            getFileList();
-            
-            // Update timestamp
-            updateLastRefreshTime();
-        }
-
-        function refreshData() {
-            // Show loading state
-            showToast('Refreshing data...', 'info');
-            
-            // Clear current data and show loading
-            showLoadingState();
-            
-            // Refresh all data
-            initializePage();
-            
-            setTimeout(() => {
-                showToast('Data refreshed successfully!', 'success');
-            }, 1000);
-        }
-
-        function showLoadingState() {
-            document.getElementById('latestData').innerHTML = '<div class="text-center py-4"><div class="loading bg-gray-200 rounded h-4 mb-2"></div><div class="loading bg-gray-200 rounded h-4 mb-2"></div><div class="loading bg-gray-200 rounded h-4"></div></div>';
-            document.getElementById('statsData').innerHTML = '<div class="text-center py-4"><div class="loading bg-gray-200 rounded h-4 mb-2"></div><div class="loading bg-gray-200 rounded h-4 mb-2"></div><div class="loading bg-gray-200 rounded h-4"></div></div>';
-            document.getElementById('debugInfo').innerHTML = '<div class="text-center py-4"><div class="loading bg-gray-200 rounded h-4 mb-2"></div><div class="loading bg-gray-200 rounded h-4 mb-2"></div><div class="loading bg-gray-200 rounded h-4"></div></div>';
-            document.getElementById('fileList').innerHTML = '<div class="text-center py-4"><div class="loading bg-gray-200 rounded h-4 mb-2"></div><div class="loading bg-gray-200 rounded h-4 mb-2"></div><div class="loading bg-gray-200 rounded h-4"></div></div>';
-        }
-
-        function updateLastRefreshTime() {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('th-TH', { hour12: false });
-            document.getElementById('lastRefresh').textContent = `Last update: ${timeString}`;
-        }
-
-        async function apiCall(endpoint) {
-            try {
-                updateConnectionStatus(true);
-                const response = await fetch(`${API_BASE}${endpoint}`);
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    throw new Error(data.error || 'API Error');
-                }
-                
-                return data;
-            } catch (error) {
-                console.error('API Error:', error);
-                updateConnectionStatus(false);
-                showToast(error.message, 'error');
-                return null;
-            }
-        }
-
-        function updateConnectionStatus(connected) {
-            const statusElement = document.getElementById('connectionStatus');
-            if (connected) {
-                statusElement.innerHTML = '<span class="text-sm font-medium">Connected</span>';
-                statusElement.className = 'status-indicator';
-            } else {
-                statusElement.innerHTML = '<span class="text-sm font-medium">Offline</span>';
-                statusElement.className = 'status-indicator offline';
-            }
-        }
-
-        async function getLatestData() {
-            const data = await apiCall('/latest');
-            if (data) {
-                displayLatestData(data);
-                updateQuickStats(data);
-                updateLastRefreshTime();
-            }
-        }
-
-        async function getDebugInfo() {
-            const data = await apiCall('/debug');
-            if (data) {
-                displayDebugInfo(data);
-                updateRecordsCount(data.totalRows);
-                updateLastRefreshTime();
-            }
-        }
-
-        async function getStats(hours) {
-            const data = await apiCall(`/stats/${hours}`);
-            if (data) {
-                displayStats(data);
-                createChart(data);
-                updateLastRefreshTime();
-            }
-        }
-
-        async function getCustomStats() {
-            const hours = document.getElementById('customHours').value;
-            if (hours && hours > 0) {
-                await getStats(hours);
-                showToast(`Updated stats for ${hours} hours`, 'success');
-            }
-        }
-
-        async function getFileList() {
-            const data = await apiCall('/files');
-            if (data) {
-                displayFileList(data);
-                updateCurrentFile(data.currentFile);
-                updateLastRefreshTime();
-            }
-        }
-
-        function displayLatestData(data) {
-            const element = document.getElementById('latestData');
-            const { csvFile, ...actualData } = data;
-            
-            // Add highlight effect when data updates
-            element.className = 'data-updated';
-            setTimeout(() => element.className = '', 1000);
-            
-            let html = '<div class="space-y-3">';
-            Object.entries(actualData).forEach(([key, value]) => {
-                html += `
-                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <span class="font-medium text-gray-700">${key}</span>
-                        <span class="text-gray-900 font-semibold">${value}</span>
-                    </div>
-                `;
-            });
-            html += '</div>';
-            
-            element.innerHTML = html;
-        }
-
-        function displayStats(data) {
-            const element = document.getElementById('statsData');
-            
-            if (!data.stats || Object.keys(data.stats).length === 0) {
-                element.innerHTML = '<p class="text-gray-500">No statistics available</p>';
-                return;
-            }
-            
-            let html = `
-                <div class="mb-4 p-3 bg-blue-50 rounded-lg">
-                    <p class="text-sm font-medium text-blue-800">
-                        ${data.dataPoints} data points in last ${data.timeRange.hours} hours
-                    </p>
-                </div>
-                <div class="space-y-3">
+    async function fetchLatest() {
+      try {
+        const res = await fetch(`${BASE_URL}/latest`);
+        const data = await res.json();
+        
+        let html = '';
+        Object.entries(data).forEach(([key, val]) => {
+          if (key !== 'csvFile') {
+            // Format numeric values to 2 decimal places
+            const formattedValue = isNaN(val) ? val : parseFloat(val).toFixed(2);
+            html += `
+              <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
+                <div class="text-sm font-medium text-gray-600 mb-1">${key}</div>
+                <div class="text-2xl font-bold text-gray-900">${formattedValue}</div>
+              </div>
             `;
-            
-            Object.entries(data.stats).forEach(([key, stats]) => {
-                html += `
-                    <div class="p-3 bg-gray-50 rounded-lg">
-                        <h4 class="font-medium text-gray-700 mb-2">${key}</h4>
-                        <div class="grid grid-cols-3 gap-2 text-sm">
-                            <div class="text-center">
-                                <div class="text-green-600 font-semibold">${stats.min}</div>
-                                <div class="text-gray-500">Min</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-blue-600 font-semibold">${stats.avg}</div>
-                                <div class="text-gray-500">Avg</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-red-600 font-semibold">${stats.max}</div>
-                                <div class="text-gray-500">Max</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            html += '</div>';
-            element.innerHTML = html;
-        }
+          }
+        });
+        
+        document.getElementById('latestData').innerHTML = html;
+      } catch {
+        document.getElementById('latestData').innerHTML = '<div class="text-center py-8 text-red-500">Unable to load current data</div>';
+      }
+    }
 
-        function displayDebugInfo(data) {
-            const element = document.getElementById('debugInfo');
-            
-            let html = `
-                <div class="space-y-3">
-                    <div class="p-3 bg-gray-50 rounded-lg">
-                        <p><strong>Total Rows:</strong> ${data.totalRows}</p>
-                        <p><strong>CSV File:</strong> ${data.csvFile}</p>
-                        <p><strong>Current Time:</strong> ${new Date(data.currentTime).toLocaleString('th-TH')}</p>
-                    </div>
-                    <div class="p-3 bg-gray-50 rounded-lg">
-                        <p><strong>Latest 5 Rows Status:</strong></p>
-                        <div class="mt-2 space-y-1">
-            `;
-            
-            data.latest5Rows.forEach((row, index) => {
-                const statusColor = row.isValid ? 'text-green-600' : 'text-red-600';
-                html += `
-                    <div class="text-xs ${statusColor}">
-                        Row ${index + 1}: ${row.originalDate} ${row.originalTime} - ${row.isValid ? 'Valid' : 'Invalid'}
-                    </div>
-                `;
-            });
-            
-            html += '</div></div></div>';
-            element.innerHTML = html;
-        }
+    function updateTimestamp() {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString('en-US', { 
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      document.getElementById('lastRefresh').textContent = timeString;
+    }
 
-        function displayFileList(data) {
-            const element = document.getElementById('fileList');
-            
-            let html = '<div class="space-y-2">';
-            data.availableFiles.forEach(file => {
-                const fileSize = (file.size / 1024).toFixed(2);
-                const modifiedDate = new Date(file.modified).toLocaleString('th-TH');
-                
-                html += `
-                    <div class="p-3 bg-gray-50 rounded-lg">
-                        <div class="font-medium text-gray-800">${file.filename}</div>
-                        <div class="text-xs text-gray-500">
-                            ${fileSize} KB • ${modifiedDate}
-                        </div>
-                    </div>
-                `;
-            });
-            html += '</div>';
-            
-            element.innerHTML = html;
-        }
+    function updateAll() {
+      fetchStats(3, 'stats3');
+      fetchStats(12, 'stats12');
+      fetchStats(24, 'stats24');
+      fetchLatest();
+      updateTimestamp();
+    }
 
-        function updateQuickStats(data) {
-            const latestTimeElement = document.getElementById('latestTime');
-            if (data.Date && data.Time) {
-                const dateTime = `${data.Date} ${data.Time}`;
-                latestTimeElement.textContent = new Date(dateTime).toLocaleString('th-TH');
-            } else {
-                latestTimeElement.textContent = 'N/A';
-            }
-        }
+    // Initial load
+    updateAll();
 
-        function updateRecordsCount(count) {
-            document.getElementById('totalRecords').textContent = count.toLocaleString();
-        }
-
-        function updateCurrentFile(filePath) {
-            const filename = filePath.split('/').pop() || filePath.split('\\').pop();
-            document.getElementById('currentFile').textContent = filename;
-        }
-
-        function createChart(data) {
-            if (!data.stats || Object.keys(data.stats).length === 0) {
-                return;
-            }
-            
-            const ctx = document.getElementById('dataChart').getContext('2d');
-            
-            if (chart) {
-                chart.destroy();
-            }
-            
-            const labels = Object.keys(data.stats);
-            const minValues = labels.map(label => parseFloat(data.stats[label].min));
-            const maxValues = labels.map(label => parseFloat(data.stats[label].max));
-            const avgValues = labels.map(label => parseFloat(data.stats[label].avg));
-            
-            chart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'Min',
-                            data: minValues,
-                            backgroundColor: 'rgba(34, 197, 94, 0.6)',
-                            borderColor: 'rgba(34, 197, 94, 1)',
-                            borderWidth: 1
-                        },
-                        {
-                            label: 'Average',
-                            data: avgValues,
-                            backgroundColor: 'rgba(59, 130, 246, 0.6)',
-                            borderColor: 'rgba(59, 130, 246, 1)',
-                            borderWidth: 1
-                        },
-                        {
-                            label: 'Max',
-                            data: maxValues,
-                            backgroundColor: 'rgba(239, 68, 68, 0.6)',
-                            borderColor: 'rgba(239, 68, 68, 1)',
-                            borderWidth: 1
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: `Statistics for Last ${data.timeRange.hours} Hours`
-                        },
-                        legend: {
-                            position: 'top'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-        }
-
-        function showToast(message, type = 'info') {
-            const toast = document.createElement('div');
-            const bgColor = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500';
-            
-            toast.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 fade-in`;
-            toast.textContent = message;
-            
-            document.body.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.remove();
-            }, 3000);
-        }
-    </script>
+    // Auto-refresh every second
+    setInterval(updateAll, 1000);
+  </script>
 </body>
 </html>
