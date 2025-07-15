@@ -4,206 +4,88 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PM Analytics Dashboard</title>
-  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<link rel="stylesheet" href="index.css">
 </head>
 
 <body>
-  <header class="header">
-    <div class="container">
-      <div class="header-content">
-        <div class="header-left">
-          <div class="header-icon">📊</div>
-          <div>
-            <h1 class="header-title">PM Analytics Dashboard</h1>
-            <p class="header-subtitle">
-              <span class="status-indicator"></span>
-              Real-time monitoring - Updates every second
-            </p>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <div class="header-icon">📊</div>
+        <div>
+          <div class="header-title">PM Analytics Dashboard</div>
+          <div class="header-subtitle">
+            <span class="status-dot"></span>
+            Real-time monitoring - Updates every second
           </div>
         </div>
-        <div class="header-right">
-          <div class="label">Last Updated</div>
-          <div class="value" id="lastRefresh">--:--:--</div>
+      </div>
+      <div class="header-toggle">
+        <div class="toggle-container">
+          <div class="toggle-label">PC (particles)</div>
+          <div class="toggle-switch" id="toggleSwitch" onclick="toggleDataType()">
+            <div class="toggle-slider"></div>
+          </div>
+          <div class="toggle-label">PM (µg/m³)</div>
         </div>
       </div>
     </div>
-  </header>
 
-  <main class="main">
-    <div class="container">
-      <!-- Current Data Section -->
-      <section class="section">
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title-section">
-              <div class="card-icon" style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);">⚡</div>
-              <div>
-                <h2 class="card-title">Current Readings</h2>
-                <p class="card-subtitle">Live sensor data - Updates every second</p>
-              </div>
-            </div>
-            <div class="card-status">
-              <div class="status-indicator"></div>
-              <span>Online</span>
-            </div>
-          </div>
-          <div id="latestData" class="data-grid">
-            <div class="data-item">
-              <div class="loading-shimmer large"></div>
-              <div class="loading-shimmer small"></div>
-            </div>
-            <div class="data-item">
-              <div class="loading-shimmer large"></div>
-              <div class="loading-shimmer small"></div>
-            </div>
-            <div class="data-item">
-              <div class="loading-shimmer large"></div>
-              <div class="loading-shimmer small"></div>
-            </div>
-          </div>
+    <!-- Real-time Section -->
+    <div class="realtime-section">
+      <div class="realtime-header">
+        <span>Real_Time</span>
+        <div class="last-update-info">
+          <div class="last-update-label">Last Updated</div>
+          <div class="last-update-time" id="lastUpdate">--:--:--</div>
         </div>
-      </section>
-
-      <!-- Historical Data Section -->
-      <section class="section">
-        <div class="grid grid-3">
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title-section">
-                <div class="card-icon" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">🕐</div>
-                <div>
-                  <h3 class="card-title" style="font-size: 1.5rem;">3 Hours Range</h3>
-                  <p class="card-subtitle">Recent Historical Data</p>
-                </div>
-              </div>
-            </div>
-            <div id="stats3">
-              <div class="loading-shimmer"></div>
-              <div class="loading-shimmer"></div>
-              <div class="loading-shimmer small"></div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title-section">
-                <div class="card-icon" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">🕕</div>
-                <div>
-                  <h3 class="card-title" style="font-size: 1.5rem;">12 Hours Range</h3>
-                  <p class="card-subtitle">Extended Historical View</p>
-                </div>
-              </div>
-            </div>
-            <div id="stats12">
-              <div class="loading-shimmer"></div>
-              <div class="loading-shimmer"></div>
-              <div class="loading-shimmer small"></div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header">
-              <div class="card-title-section">
-                <div class="card-icon" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">🕛</div>
-                <div>
-                  <h3 class="card-title" style="font-size: 1.5rem;">24 Hours Range</h3>
-                  <p class="card-subtitle">Full Daily Overview</p>
-                </div>
-              </div>
-            </div>
-            <div id="stats24">
-              <div class="loading-shimmer"></div>
-              <div class="loading-shimmer"></div>
-              <div class="loading-shimmer small"></div>
-            </div>
-          </div>
-        </div>
-      </section>
+      </div>
+      <div class="realtime-grid" id="realtimeData">
+        <div class="loading">Loading real-time data...</div>
+      </div>
     </div>
-  </main>
 
-<!-- <script src="script.js"></script> -->
- <script>const BASE_URL = 'http://localhost:3000';
-
-async function fetchStats(hours, targetId) {
-  try {
-    const res = await fetch(`${BASE_URL}/stats/${hours}`);
-    const data = await res.json();
-    const el = document.getElementById(targetId);
-    
-    if (!data.stats) {
-      el.innerHTML = '<div class="no-data">No data available</div>';
-      return;
-    }
-
-    let html = '';
-    Object.entries(data.stats).forEach(([key, val]) => {
-      html += `
-        <div class="stats-item">
-          <div class="stats-title">${key}</div>
-          <div class="stats-values">
-            <span class="stats-value">Min: <strong class="min-value">${parseFloat(val.min).toFixed(2)}</strong></span>
-            <span class="stats-value">Avg: <strong class="avg-value">${parseFloat(val.avg).toFixed(2)}</strong></span>
-            <span class="stats-value">Max: <strong class="max-value">${parseFloat(val.max).toFixed(2)}</strong></span>
-          </div>
+    <!-- Statistics Section -->
+    <div class="stats-section">
+      <!-- 3 Hours -->
+      <div class="stats-card stats-3h">
+        <div class="stats-header">3 Hours Range</div>
+        <div id="stats3">
+          <div class="loading">Loading statistics...</div>
         </div>
-      `;
-    });
-    
-    el.innerHTML = html;
-  } catch (err) {
-    document.getElementById(targetId).innerHTML = '<div class="error-message">Connection error</div>';
-  }
-}
+      </div>
 
-async function fetchLatest() {
-  try {
-    const res = await fetch(`${BASE_URL}/latest`);
-    const data = await res.json();
-    
-    let html = '';
-    Object.entries(data).forEach(([key, val]) => {
-      if (key !== 'csvFile') {
-        // Format numeric values to 2 decimal places
-        const formattedValue = isNaN(val) ? val : parseFloat(val).toFixed(2);
-        html += `
-          <div class="data-item">
-            <div class="metric-label">${key}</div>
-            <div class="metric-value">${formattedValue}</div>
-          </div>
-        `;
-      }
-    });
-    
-    document.getElementById('latestData').innerHTML = html;
-  } catch {
-    document.getElementById('latestData').innerHTML = '<div class="error-message">Unable to load current data</div>';
-  }
-}
+      <!-- 12 Hours -->
+      <div class="stats-card stats-12h">
+        <div class="stats-header">12 Hours Range</div>
+        <div id="stats12">
+          <div class="loading">Loading statistics...</div>
+        </div>
+      </div>
 
-function updateTimestamp() {
-  const now = new Date();
-  const timeString = now.toLocaleTimeString('en-US', { 
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  });
-  document.getElementById('lastRefresh').textContent = timeString;
-}
+      <!-- 24 Hours -->
+      <div class="stats-card stats-24h">
+        <div class="stats-header">24 Hours Range</div>
+        <div id="stats24">
+          <div class="loading">Loading statistics...</div>
+        </div>
+      </div>
+    </div>
 
-function updateAll() {
-  fetchStats(3, 'stats3');
-  fetchStats(12, 'stats12');
-  fetchStats(24, 'stats24');
-  fetchLatest();
-  updateTimestamp();
-}
+    <!-- Chart Section -->
+    <div class="chart-section">
+      <div style="text-align: center; margin-bottom: 10px;">
+        <h3 style="color: #495057; font-size: 18px; margin-bottom: 5px;" id="chartTitle">PC0.1 Trend (Last 10 Minutes)</h3>
+        <p style="color: #6c757d; font-size: 14px;">Real-time monitoring of PC0.1 levels</p>
+      </div>
+      <div class="chart-container">
+        <canvas id="pmChart"></canvas>
+      </div>
+    </div>
+  </div>
 
-// Initial load
-updateAll();
-
-// Auto-refresh every second
-setInterval(updateAll, 1000);</script>
+  <script src="script.js"></script>
 </body>
 </html>
